@@ -1,0 +1,2 @@
+# oracle
+My digital brain
