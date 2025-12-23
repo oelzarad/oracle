@@ -1,2 +1,2 @@
 # oracle
-My digital brain
+My digital memory
