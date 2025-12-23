@@ -17,6 +17,11 @@ This repo stores information I want to remember and reference later. Git version
 
 Content is stored as markdown files (and other relevant formats) organized by topic or project.
 
+## Important Rules
+
+- **Confirm before modifying** - Always confirm with the user before creating, editing, or deleting any content in this repo
+- **Do not touch other agent files** - `AGENTS.md` and `GEMINI.md` belong to other LLM CLIs that share this folder; leave them alone
+
 ## Usage
 
-When helping here, I'm assisting with capturing, organizing, and retrieving knowledge. The goal is to help the user pick up where they left off and maintain continuity across time.
+This folder is shared by multiple LLM CLIs (Claude, Codex, Gemini). When helping here, I'm assisting with capturing, organizing, and retrieving knowledge. The goal is to help the user pick up where they left off and maintain continuity across time.
