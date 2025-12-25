@@ -124,3 +124,72 @@ Failure to maintain these manual rules can result in:
 - Silent traffic leaks
 - Misleading symptoms during debugging
 
+### Kill-Switch Implementation – Ordering Caveat
+
+When adding the VPN kill-switch rule to `wg0.conf`, the initial implementation used:
+
+
+Using **`-I` (insert)** places the rule at the **top** of the chain, which caused:
+
+- The REJECT rule to run **before** the RFC1918 ACCEPT rules
+- All local and Docker-internal traffic to be blocked
+- Result: Radarr, Sonarr, NZB apps, etc. were no longer reachable
+
+#### Correct Implementation
+
+The kill-switch must be **appended**, not inserted, so that it executes **after** LAN-allowed ACCEPT rules.
+
+The corrected rule uses **`-A` (append)**:
+
+
+#### Why Order Matters
+
+Order of rules in `OUTPUT` is evaluated **top-down**.  
+If the kill-switch is first, it catches *all* traffic and prevents later ACCEPT rules from matching.  
+Appending instead ensures:
+
+1️⃣ Allow LAN  
+2️⃣ Allow Docker internal  
+3️⃣ Block anything not going through `wg0`
+
+#### Verification Checklist
+
+To confirm correct order:
+
+docker exec -it wireguard sh -lc 'iptables -S OUTPUT'
+
+Expected:
+-A OUTPUT -d 192.168.0.0/16 -j ACCEPT
+-A OUTPUT -d 10.0.0.0/8 -j ACCEPT
+-A OUTPUT -d 172.16.0.0/12 -j ACCEPT
+-A OUTPUT ! -o wg0 -m addrtype ! --dst-type LOCAL -j REJECT
+
+
+If the REJECT line appears **above** the ACCEPT lines → the kill-switch will block all apps.
+
+
+### Kill-Switch Attempt and Why It Was Removed
+
+We experimented with adding a global OUTPUT kill-switch rule:
+
+```bash
+iptables -A OUTPUT ! -o wg0 -m addrtype ! --dst-type LOCAL -j REJECT
+```
+
+Although this successfully blocked non-VPN internet traffic, it also had an unintended side effect:
+
+WireGuard’s own control traffic to the VPN endpoint (public IP on eth0) was blocked.
+
+Once those packets were rejected, the tunnel stopped working.
+
+As a result, Radarr/Sonarr lost all internet connectivity even though the containers were running.
+
+Because this setup runs on Docker Desktop (macOS) with LinuxServer.io WireGuard and nftables under the hood, implementing a robust kill-switch without breaking the tunnel would require more complex, endpoint-specific firewall rules.
+
+For now, the kill-switch rule has been removed, and we rely on:
+
+Full-tunnel routing via WireGuard
+
+RFC1918 route exceptions for LAN/Docker access
+
+This keeps the configuration simple and reliable while still ensuring that application traffic is routed through the VPN under normal operation.
